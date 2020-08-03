@@ -12,6 +12,7 @@
     <Name>MyWeiboSpider</Name>
     <RootNamespace>MyWeiboSpider</RootNamespace>
     <InterpreterId>Global|PythonCore|3.6</InterpreterId>
+    <SuppressEnvironmentCreationPrompt>True</SuppressEnvironmentCreationPrompt>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)' == 'Debug' ">
     <DebugSymbols>true</DebugSymbols>

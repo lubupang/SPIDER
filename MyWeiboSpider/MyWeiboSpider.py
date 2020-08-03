@@ -8,7 +8,10 @@ uids=configjob['uids']
 gsid=configjob['gsid']
 
 spider=weibospider.Spider(uids=uids,gsid=gsid)
-spider.getallcontents()
+#没内容ID用这个
+#spider.getallcontents()
+#有美容ID用这个
+spider.contentlist=json.loads(open('contents.json').read())
 spider.getrepostusers()
 spider.getflowusers()
 df=pandas.read_json(json.dumps(spider.users))
