@@ -14,8 +14,7 @@ spider=weibospider.Spider(uids=uids,gsid=gsid)
 spider.contentlist=json.loads(open('contents.json').read())
 spider.getrepostusers()
 spider.getflowusers()
-df=pandas.read_json(json.dumps(spider.users))
-df.to_csv(r'111.csv',index= False)
+
 print("用户数据已写入 111.csv")
 
 
