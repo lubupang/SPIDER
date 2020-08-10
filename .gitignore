@@ -89,7 +89,9 @@ StyleCopReport.xml
 *.scc
 *.csv
 *.zip
-MyWeiboSpider/contents.json
+contents.json
+.gitignore
+.gitattributes
 # Chutzpah Test files
 _Chutzpah*
 
