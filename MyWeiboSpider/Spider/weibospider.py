@@ -40,7 +40,7 @@ class Spider():
         reponsejob=json.loads(response.text)
         time.sleep(1.1)
         while('page_type' in reponsejob['cardlistInfo'].keys()):
-            t=t+1
+            
             cards=reponsejob['cards']            
             cardsdf=pandas.read_json(json.dumps(cards))
             contentcardsdf=cardsdf[cardsdf.card_type==9]
