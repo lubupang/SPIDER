@@ -2,9 +2,11 @@ import requests
 import json
 import pandas
 import time
-contentbaseurl=r'https://api.weibo.cn/2/cardlist?c=android&s=8915076d&from=1098495010&ua=Netease-MuMu__weibo__9.8.4__android__android6.0.1&android_id=4d0e05a6668dbdaa&gsid='
-repostbaseurl=r'https://api.weibo.cn/2/statuses/repost_timeline?c=android&s=8915076d&from=1098495010&ua=Netease-MuMu__weibo__9.8.4__android__android6.0.1&android_id=4d0e05a6668dbdaa&gsid='
-flowbaseurl=r'https://api.weibo.cn/2/comments/build_comments?is_show_bulletin=2&c=android&s=8915076d&from=1098495010&ua=Netease-MuMu__weibo__9.8.4__android__android6.0.1&android_id=4d0e05a6668dbdaa&gsid='
+import os.path
+contentbaseurl=r'https://api.weibo.cn/2/cardlist?count=200&c=android&s=8915076d&from=1098495010&ua=Netease-MuMu__weibo__9.8.4__android__android6.0.1&android_id=4d0e05a6668dbdaa&gsid='
+repostbaseurl=r'https://api.weibo.cn/2/statuses/repost_timeline?count=200&c=android&s=8915076d&from=1098495010&ua=Netease-MuMu__weibo__9.8.4__android__android6.0.1&android_id=4d0e05a6668dbdaa&gsid='
+flowbaseurl=r'https://api.weibo.cn/2/comments/show?count=200&is_show_bulletin=2&c=android&s=8915076d&from=1098495010&ua=Netease-MuMu__weibo__9.8.4__android__android6.0.1&android_id=4d0e05a6668dbdaa&gsid='
+
 class Spider():
     '''
     
@@ -16,9 +18,16 @@ class Spider():
         print(self.status)
         self.users=[]        
     def getallcontents(self):
-        list1=[self.getonebyuid(x) for x in self.uids]
-        self.contentlist=[y for x in list1 for y in x ]
+        if os.path.isfile('contents.json'):
+            self.contentlist=json.loads(open('contents.json').read())
+        else:
+            list1=[self.getonebyuid(x) for x in self.uids]
+            self.contentlist=[y for x in list1 for y in x ]
         print(self.contentlist)
+        df=pandas.DataFrame(self.contentlist)        
+        df=df.sort_values(by='id')
+        df=df.reset_index().drop(columns=['index'])
+        df.to_json('contents.json',orient='records')
     def getonebyuid(self,uid):
         res=[]
         containerid='230413'+str(uid)+'_-_WEIBO_SECOND_PROFILE_WEIBO'
@@ -26,11 +35,11 @@ class Spider():
         print(contentbaseurl+str(self.gsid)+'&containerid='+str(containerid)+'&page='+str(page))
         response=requests.get(contentbaseurl+str(self.gsid)+'&containerid='+str(containerid)+'&page='+str(page))
         while(response.status_code !=200):
-            time.sleep(30)
+            time.sleep(10)
             response=requests.get(contentbaseurl+str(self.gsid)+'&containerid='+str(containerid)+'&page='+str(page))
         reponsejob=json.loads(response.text)
-        t=0
-        while('page_type' in reponsejob['cardlistInfo'].keys() and t<1):
+        time.sleep(1.1)
+        while('page_type' in reponsejob['cardlistInfo'].keys()):
             t=t+1
             cards=reponsejob['cards']            
             cardsdf=pandas.read_json(json.dumps(cards))
@@ -41,21 +50,23 @@ class Spider():
             print(contentbaseurl+str(self.gsid)+'&containerid='+str(containerid)+'&page='+str(page))
             response=requests.get(contentbaseurl+str(self.gsid)+'&containerid='+str(containerid)+'&page='+str(page))
             while(response.status_code !=200):
-                time.sleep(30)
+                time.sleep(10)
                 response=requests.get(contentbaseurl+str(self.gsid)+'&containerid='+str(containerid)+'&page='+str(page))
             reponsejob=json.loads(response.text)
-            time.sleep(1.5)
+            time.sleep(1.1)
         return res
     def getrepostusers(self):
         df=pandas.DataFrame(self.contentlist)        
         df=df.sort_values(by='id')
-        
+        df=df.reset_index().drop(columns=['index'])
         if self.status['lastrepostcontentid']!=0:
-            indexnum=df[df['id']==self.status['lastrepostcontentid']]
+            indexnum=df[df['id']==self.status['lastrepostcontentid']].index[0]
+            print(indexnum)
             df=df.reset_index()
             df=df[df['index']>indexnum]
             df=df.drop(columns=['index'])
-        job=json.loads(df.to_json(orient='records'))        
+        job=json.loads(df.to_json(orient='records'))
+        time.sleep(1.1)
         for x in job:
             users_thiscontent=[]
             page=1   
@@ -67,13 +78,13 @@ class Spider():
                 response=requests.get(repostbaseurl+str(self.gsid)+'&id='+str(x['id'])+'&page='+str(page))
 
             responsejob=json.loads(response.text)            
-         
+            time.sleep(1.1)
             check=False if responsejob['reposts']==None else False if len(responsejob['reposts'])==0 else True
             
             while(check):
                 for y in responsejob['reposts']:
                     
-                    users_thiscontent.append({'id':y['user']['id'],'nick':y['user']['name']})
+                    users_thiscontent.append({'cid':x['id'],'id':y['user']['id'],'nick':y['user']['name']})
                 page=page+1
                
                 print(repostbaseurl+str(self.gsid)+'&id='+str(x['id'])+'&page='+str(page))
@@ -84,77 +95,63 @@ class Spider():
 
                 responsejob=json.loads(response.text)
                 check=False if responsejob['reposts']==None else False if len(responsejob['reposts'])==0 else True
-                time.sleep(0.5)
+                time.sleep(1.1)
             self.status['lastrepostcontentid']=x['id']
             open('status.config','w').write(json.dumps(self.status))
             df=pandas.read_json(json.dumps(users_thiscontent))
             df.to_csv(r'111.csv',index= False,mode='a')
-            
+            time.sleep(1.1)
  
     def getflowusers(self):
         df=pandas.DataFrame(self.contentlist)
         df=df.sort_values(by='id')
+        df=df.reset_index().drop(columns=['index'])
         if self.status['lastcommentcontentid']!=0:
-            indexnum=df[df['id']==self.status['lastcommentcontentid']]
+            indexnum=df[df['id']==self.status['lastcommentcontentid']].index[0]
             df=df.reset_index()
             df=df[df['index']>indexnum] 
             df=df.drop(columns=['index'])
         job=json.loads(df.to_json(orient='records'))
+        time.sleep(1.1)
         for x in job:    
             users_thiscontent=[]
             print(flowbaseurl+str(self.gsid)+'&id='+str(x['id'])+'&max_id=0')
             
             response=requests.get(flowbaseurl+str(self.gsid)+'&id='+str(x['id'])+'&max_id=0')
-            while(response.status_code !=200):
-                time.sleep(10)
+            responsejob=json.loads(response.text if response.status_code==200 else '{}')
+            while(response.status_code !=200 or 'comments' not in responsejob.keys()):
+                time.sleep(10)                
                 response=requests.get(flowbaseurl+str(self.gsid)+'&id='+str(x['id'])+'&max_id=0')
-            responsejob=json.loads(response.text)
+                responsejob=json.loads(response.text if response.status_code==200 else '{}')
+            
            
-            self.pushone(responsejob,users_thiscontent)
-            while(responsejob['max_id']!=0):
-                maxid=responsejob['max_id']
-                url=flowbaseurl+str(self.gsid)+'&id='+str(x['id'])+'&max_id='+str(maxid)
-                print(url)
-                response=requests.get(url)
-                while(response.status_code !=200):
-                    time.sleep(10)
+
+           
+           
+            self.pushone(responsejob,users_thiscontent,x['id'])
+            if 'max_id' in responsejob.keys():
+                while(responsejob['max_id']!=0):
+                    maxid=responsejob['max_id']
+                    url=flowbaseurl+str(self.gsid)+'&id='+str(x['id'])+'&max_id='+str(maxid)
+                    print(url)
                     response=requests.get(url)
-                responsejob=json.loads(response.text)
-                
-                self.pushone(responsejob,users_thiscontent)
-                time.sleep(0.5)
-            self.status['lastcommentcontentid']=x['id']
-            open('status.config','w').write(json.dumps(self.status))                
-            df=pandas.read_json(json.dumps(users_thiscontent))
-            df.to_csv(r'111.csv',index= False,mode='a')
-    def pushone(self,jsonobject,users_this):
-        for y in jsonobject['root_comments']:
-            users_this.append({'id':y['user']['id'],'nick':y['user']['name']})
-            root_comment_id=y['id']
-            if 'more_info' in y.keys():
-                print(flowbaseurl+str(self.gsid)+'&id='+str(root_comment_id)+'&max_id=0&fetch_level=1')
-                response_recomment=requests.get(flowbaseurl+str(self.gsid)+'&id='+str(root_comment_id)+'&max_id=0&fetch_level=1')
-                while(response_recomment.status_code !=200):
-                    time.sleep(10)
-                    response_recomment=requests.get(flowbaseurl+str(self.gsid)+'&id='+str(root_comment_id)+'&max_id=0&fetch_level=1')
-                response_recomment_job=json.loads(response_recomment.text)
-                for z in response_recomment_job['comments']:
-                    users_this.append({'id':z['user']['id'],'nick':z['user']['name']})
-                
-                while(response_recomment_job['max_id']!=0):
-                    recomment_maxid=response_recomment_job['max_id']
-                    print('回复评论:'+flowbaseurl+str(self.gsid)+'&id='+str(root_comment_id)+'&max_id='+str(recomment_maxid)+'&fetch_level=1')
-                    response_recomment=requests.get(flowbaseurl+str(self.gsid)+'&id='+str(root_comment_id)+'&max_id='+str(recomment_maxid)+'&fetch_level=1')
-                    while(response_recomment.status_code !=200):
+                    responsejob=json.loads(response.text if response.status_code==200 else '{}')
+                    while(response.status_code !=200 or ('max_id' not in responsejob.keys())):
                         time.sleep(10)
-                        response_recomment=requests.get(flowbaseurl+str(self.gsid)+'&id='+str(root_comment_id)+'&max_id='+str(recomment_maxid)+'&fetch_level=1')
-                    time.sleep(0.5)
-                    response_recomment_job=json.loads(response_recomment.text)
-                    for z in response_recomment_job['comments']:
-                        users_this.append({'id':z['user']['id'],'nick':z['user']['name']})
-            else:
-                for z in y['comments']:
-                    users_this.append({'id':z['user']['id'],'nick':z['user']['name']})
+                        response=requests.get(url)
+                        responsejob=json.loads(response.text if response.status_code==200 else '{}')
+                
+                    self.pushone(responsejob,users_thiscontent,x['id'])
+                    time.sleep(1.1)
+                self.status['lastcommentcontentid']=x['id']
+                open('status.config','w').write(json.dumps(self.status))                
+                df=pandas.read_json(json.dumps(users_thiscontent))
+                df.to_csv(r'111.csv',index= False,mode='a')
+            time.sleep(1.1)
+    def pushone(self,jsonobject,users_this,cid):
+        for y in jsonobject['comments']:
+            users_this.append({'cid':cid,'id':y['user']['id'],'nick':y['user']['name']})
+
 
             
         
