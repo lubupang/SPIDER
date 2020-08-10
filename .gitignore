@@ -89,7 +89,7 @@ StyleCopReport.xml
 *.scc
 *.csv
 *.zip
-contents.json
+MyWeiboSpider/contents.json
 # Chutzpah Test files
 _Chutzpah*
 
