@@ -8,7 +8,7 @@ configjob=json.loads(open(configfile).read())
 uids=configjob['uids']
 gsid=configjob['gsid']
 
-spider=weibospider.Spider(uids=uids,gsid=gsid)
+spider=weibospider.UserSpider(uids=uids,gsid=gsid)
 
 spider.getallcontents()
 
