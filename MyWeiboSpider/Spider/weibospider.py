@@ -27,13 +27,13 @@ class Config():
     '''
     订阅式爬取需要的配置
     '''
-    def __init__(self,id, maxid,minid,isbottom,maxpagenum,type):
+    def __init__(self,id, maxid,minid,isbottom,maxpagenum,mytype):
         self.maxid=maxid
         self.minid=minid
         self.isbottom=isbottom
         self.maxpagenum=maxpagenum
         self.id=id
-        self.type=type
+        self.mytype=mytype
 class Connection():
     '''
     pymysql持久连接简易解决方案。。。。
@@ -106,7 +106,7 @@ class Base():
             url=baseurl+'&page='+str(page)
             responsejob=Base.getByUrlDetail(url)            
             
-            ids=[x['id'] for x in responsejob[config[myconf.type]['key']]] if config[myconf.type]['key'] in responsejob.keys() else [] 
+            ids=[x['id'] for x in responsejob[config[myconf.mytype]['key']]] if config[myconf.mytype]['key'] in responsejob.keys() else [] 
  
             
             if ids!=[]:
@@ -115,60 +115,60 @@ class Base():
                 actminid=min(min(ids),actminid) if actminid!=-1 else min(ids)
                 actmaxpagenum=max(myconf.maxpagenum,page)                
                 try:
-                    cnn.execute(config[myconf.type]['sqltemplate'].format(myconf.id,actmaxid,actminid,actmaxpagenum,myconf.isbottom,str(datetime.datetime.now())))          
+                    cnn.execute(config[myconf.mytype]['sqltemplate'].format(myconf.id,actmaxid,actminid,actmaxpagenum,myconf.isbottom,str(datetime.datetime.now())))          
                 except Exception as e:
-                    print(config[myconf.type]['sqltemplate'].format(myconf.id,actmaxid,actminid,actmaxpagenum,myconf.isbottom,str(datetime.datetime.now())))
+                    print(config[myconf.mytype]['sqltemplate'].format(myconf.id,actmaxid,actminid,actmaxpagenum,myconf.isbottom,str(datetime.datetime.now())))
                     print(e) 
             page=page+1
             time.sleep(1.1)
         #往前爬爬最新的
         
         try:
-            cnn.execute(config[myconf.type]['sqltemplate'].format(myconf.id,actmaxid,actminid,actmaxpagenum,myconf.isbottom,str(datetime.datetime.now())))            
+            cnn.execute(config[myconf.mytype]['sqltemplate'].format(myconf.id,actmaxid,actminid,actmaxpagenum,myconf.isbottom,str(datetime.datetime.now())))            
         except Exception as e:
-            print(config[myconf.type]['sqltemplate'].format(myconf.id,actmaxid,actminid,actmaxpagenum,myconf.isbottom,str(datetime.datetime.now())))
+            print(config[myconf.mytype]['sqltemplate'].format(myconf.id,actmaxid,actminid,actmaxpagenum,myconf.isbottom,str(datetime.datetime.now())))
             print(e)
         myconf.isbottom='true' if actminid==-1 else myconf.isbottom
         if myconf.isbottom=='false':
             page=actmaxpagenum
             url=baseurl+'&page='+str(page)
             responsejob=Base.getByUrlDetail(url)
-            ids=[x['id'] for x in responsejob[config[myconf.type]['key']]] if config[myconf.type]['key'] in responsejob.keys() else []
+            ids=[x['id'] for x in responsejob[config[myconf.mytype]['key']]] if config[myconf.mytype]['key'] in responsejob.keys() else []
             while(actminid not in ids and ids!=[]):
                 page=page+1
                 url=baseurl+'&page='+str(page)
                 responsejob=Base.getByUrlDetail(url)
-                ids=[x['id'] for x in responsejob[config[myconf.type]['key']]] if config[myconf.type]['key'] in responsejob.keys() else []
+                ids=[x['id'] for x in responsejob[config[myconf.mytype]['key']]] if config[myconf.mytype]['key'] in responsejob.keys() else []
                 time.sleep(1.1)
             while(ids!=[]):
                 Base.commitLog(cnn,url,responsejob,method)
                 page=page+1
                 url=baseurl+'&page='+str(page)
                 responsejob=Base.getByUrlDetail(url)
-                ids=[x['id'] for x in responsejob[config[myconf.type]['key']]] if config[myconf.type]['key'] in responsejob.keys() else []
+                ids=[x['id'] for x in responsejob[config[myconf.mytype]['key']]] if config[myconf.mytype]['key'] in responsejob.keys() else []
                 if ids!=[]:
                     actmaxid=max(max(ids),actmaxid)
                     actminid=min(min(ids),actminid) if actminid!=-1 else min(ids)
                     actmaxpagenum=max(actmaxpagenum,page)                    
                     try:
-                        cnn.execute(config[myconf.type]['sqltemplate'].format(myconf.id,actmaxid,actminid,actmaxpagenum,myconf.isbottom,str(datetime.datetime.now())))
+                        cnn.execute(config[myconf.mytype]['sqltemplate'].format(myconf.id,actmaxid,actminid,actmaxpagenum,myconf.isbottom,str(datetime.datetime.now())))
                             
                     except Exception as e:
-                        print(config[myconf.type]['sqltemplate'].format(myconf.id,actmaxid,actminid,actmaxpagenum,myconf.isbottom,str(datetime.datetime.now())))
+                        print(config[myconf.mytype]['sqltemplate'].format(myconf.id,actmaxid,actminid,actmaxpagenum,myconf.isbottom,str(datetime.datetime.now())))
                         print(e)
                 time.sleep(1.1)
             myconf.isbottom='true'            
             try:
-                cnn.execute(config[myconf.type]['sqltemplate'].format(myconf.id,actmaxid,actminid,actmaxpagenum,myconf.isbottom,str(datetime.datetime.now())))
+                cnn.execute(config[myconf.mytype]['sqltemplate'].format(myconf.id,actmaxid,actminid,actmaxpagenum,myconf.isbottom,str(datetime.datetime.now())))
                
             except Exception as e:
-                print(config[myconf.type]['sqltemplate'].format(myconf.id,actmaxid,actminid,actmaxpagenum,myconf.isbottom,str(datetime.datetime.now())))
+                print(config[myconf.mytype]['sqltemplate'].format(myconf.id,actmaxid,actminid,actmaxpagenum,myconf.isbottom,str(datetime.datetime.now())))
                 print(e)
         #如果没爬到底就往后爬
         time.sleep(1.1)
         
     @staticmethod
-    def getdatas(cnn,gsid,configsql,indexfield,type):
+    def getdatas(cnn,gsid,configsql,indexfield,mytype):
         '''
         实现updates
         '''
@@ -177,20 +177,20 @@ class Base():
         isbottomfield='isbottom'
         maxpagefield='maxpagenum'
         idfield='uid'
-        if type!='publish':
+        if mytype!='publish':
             idfield='id'
-            maxidfield=type+'_'+maxidfield
-            maxidfield=type+'_'+minidfield
-            maxidfield=type+'_'+isbottomfield
-            maxidfield=type+'_'+maxpagefield
+            maxidfield=mytype+'_'+maxidfield
+            minidfield=mytype+'_'+minidfield
+            isbottomfield=mytype+'_'+isbottomfield
+            maxpagefield=mytype+'_'+maxpagefield
         status=pandas.read_sql(configsql,cnn.cnn())
         status=status.set_index(indexfield)
         status_job=json.loads(status.to_json(orient='index'))
-        baseurl=config[type]['url']+gsid
+        baseurl=config[mytype]['url']+gsid
         for x in status_job:
-            myconf=Config(x,status_job[x][maxidfield],status_job[x][minidfield],status_job[x][isbottomfield],status_job[x][maxpagefield],type)
-            baseurl=baseurl+'&{}={}'.format(idfield,x)
-            Base.updates(cnn,baseurl,myconf,type)
+            myconf=Config(x,status_job[x][maxidfield],status_job[x][minidfield],status_job[x][isbottomfield],status_job[x][maxpagefield],mytype)
+            myurl=baseurl+'&{}={}'.format(idfield,x)
+            Base.updates(cnn,myurl,myconf,mytype)
 
     @staticmethod
     def getContentsByUsers(cnn,gsid):
@@ -198,9 +198,9 @@ class Base():
         爬取用户发布的微博
         '''
         sql="select `userid`,`maxid`,`minid`,`isbottom`,`maxpagenum` from appconfigs.spider_status_userspider"
-        type='publish'
+        mytype='publish'
         indexfield='userid'
-        Base.getdatas(cnn,gsid,sql,indexfield,type)
+        Base.getdatas(cnn,gsid,sql,indexfield,mytype)
         time.sleep(1.1) 
 
     @staticmethod
@@ -209,9 +209,9 @@ class Base():
         爬取用户的转发
         '''
         sql="select `contentid`,`repost_maxid`,`repost_minid`,`repost_isbottom`,`repost_maxpagenum` from appconfigs.spider_status_contentsspider"
-        type='repost'
+        mytype='repost'
         indexfield='contentid'
-        Base.getdatas(cnn,gsid,sql,indexfield,type)
+        Base.getdatas(cnn,gsid,sql,indexfield,mytype)
         time.sleep(1.1) 
     @staticmethod
     def getCommentsByContents(cnn,gsid):
@@ -219,9 +219,9 @@ class Base():
         爬取用户的评论
         '''
         sql="select `contentid`,`comment_maxid`,`comment_minid`,`comment_isbottom`,`comment_maxpagenum` from appconfigs.spider_status_contentsspider"
-        type='comment'
+        mytype='comment'
         indexfield='contentid'
-        Base.getdatas(cnn,gsid,sql,indexfield,type)
+        Base.getdatas(cnn,gsid,sql,indexfield,mytype)
         time.sleep(1.1) 
 
     @staticmethod
@@ -270,10 +270,10 @@ class Collect():
         self.password= kwargs['password'] if 'password' in kwargs.keys() else ''
         self.dbname=kwargs['database'] if 'database' in kwargs.keys() else ''
         self.cnn=Connection(self.host,self.port,self.user,self.password,self.dbname)
-        t0=threading.Thread(target=Base.getTopStars,args=(self.cnn,) )
-        t1=threading.Thread(target=Base.getContentsByUsers,args=(self.cnn,self.gsid) )
-        t2=threading.Thread(target=Base.getRepostsByContents,args=(self.cnn,self.gsid) )
-        t3=threading.Thread(target=Base.getCommentsByContents,args=(self.cnn,self.gsid) )
+        t0=threading.Thread(name='gettopstar',target=Base.getTopStars,args=(self.cnn,) )
+        t1=threading.Thread(name='getpublishes',target=Base.getContentsByUsers,args=(self.cnn,self.gsid) )
+        t2=threading.Thread(name='getreposts',target=Base.getRepostsByContents,args=(self.cnn,self.gsid) )
+        t3=threading.Thread(name='getcomments',target=Base.getCommentsByContents,args=(self.cnn,self.gsid) )
         self.threads={
             'gettopstar':t0,
             'publish':t1,
