@@ -106,7 +106,7 @@ class Base():
             url=baseurl+'&page='+str(page)
             responsejob=Base.getByUrlDetail(url)            
             
-            ids=[x['id'] for x in responsejob[config[myconf.mytype]['key']]] if config[myconf.mytype]['key'] in responsejob.keys() else [] 
+            ids=[] if config[myconf.mytype]['key'] not in responsejob.keys() else [] if responsejob[config[myconf.mytype]['key']]==None else [x['id'] for x in responsejob[config[myconf.mytype]['key']]] 
  
             
             if ids!=[]:
@@ -118,34 +118,41 @@ class Base():
                     cnn.execute(config[myconf.mytype]['sqltemplate'].format(myconf.id,actmaxid,actminid,actmaxpagenum,myconf.isbottom,str(datetime.datetime.now())))          
                 except Exception as e:
                     print(config[myconf.mytype]['sqltemplate'].format(myconf.id,actmaxid,actminid,actmaxpagenum,myconf.isbottom,str(datetime.datetime.now())))
-                    print(e) 
+                    print(e)
+            else:
+                try:
+                    cnn.execute(config[myconf.mytype]['sqltemplate'].format(myconf.id,actmaxid,actminid,actmaxpagenum,'true',str(datetime.datetime.now())))          
+                except Exception as e:
+                    print(config[myconf.mytype]['sqltemplate'].format(myconf.id,actmaxid,actminid,actmaxpagenum,'true',str(datetime.datetime.now())))
+                    print(e)
             page=page+1
             time.sleep(1.1)
         #往前爬爬最新的
+        myconf.isbottom='true' if actminid==-1 else myconf.isbottom
         
         try:
             cnn.execute(config[myconf.mytype]['sqltemplate'].format(myconf.id,actmaxid,actminid,actmaxpagenum,myconf.isbottom,str(datetime.datetime.now())))            
         except Exception as e:
             print(config[myconf.mytype]['sqltemplate'].format(myconf.id,actmaxid,actminid,actmaxpagenum,myconf.isbottom,str(datetime.datetime.now())))
             print(e)
-        myconf.isbottom='true' if actminid==-1 else myconf.isbottom
+        
         if myconf.isbottom=='false':
             page=actmaxpagenum
             url=baseurl+'&page='+str(page)
             responsejob=Base.getByUrlDetail(url)
-            ids=[x['id'] for x in responsejob[config[myconf.mytype]['key']]] if config[myconf.mytype]['key'] in responsejob.keys() else []
+            ids=[] if config[myconf.mytype]['key'] not in responsejob.keys() else [] if responsejob[config[myconf.mytype]['key']]==None else [x['id'] for x in responsejob[config[myconf.mytype]['key']]] 
             while(actminid not in ids and ids!=[]):
                 page=page+1
                 url=baseurl+'&page='+str(page)
                 responsejob=Base.getByUrlDetail(url)
-                ids=[x['id'] for x in responsejob[config[myconf.mytype]['key']]] if config[myconf.mytype]['key'] in responsejob.keys() else []
+                ids=[] if config[myconf.mytype]['key'] not in responsejob.keys() else [] if responsejob[config[myconf.mytype]['key']]==None else [x['id'] for x in responsejob[config[myconf.mytype]['key']]] 
                 time.sleep(1.1)
             while(ids!=[]):
                 Base.commitLog(cnn,url,responsejob,method)
                 page=page+1
                 url=baseurl+'&page='+str(page)
                 responsejob=Base.getByUrlDetail(url)
-                ids=[x['id'] for x in responsejob[config[myconf.mytype]['key']]] if config[myconf.mytype]['key'] in responsejob.keys() else []
+                ids=[] if config[myconf.mytype]['key'] not in responsejob.keys() else [] if responsejob[config[myconf.mytype]['key']]==None else [x['id'] for x in responsejob[config[myconf.mytype]['key']]] 
                 if ids!=[]:
                     actmaxid=max(max(ids),actmaxid)
                     actminid=min(min(ids),actminid) if actminid!=-1 else min(ids)
@@ -166,7 +173,35 @@ class Base():
                 print(e)
         #如果没爬到底就往后爬
         time.sleep(1.1)
+
+    def updatesFullback(cnn,gsid,method):
         
+        lastmaxidfield=method+'_fullback_lastmaxid'
+        idsfield=method+'_ids'
+        isbottomfield=method+'_isbottom'
+        maxpagenumfield=method+'_maxpagenum'
+        limits={
+            'comment':50,
+            'repost':500
+            }
+        sql="select contentid,{},{} from appconfigs.spider_status_contentsspider where  {}='true' and {}>={}".format(lastmaxidfield,idsfield,isbottomfield,maxpagenumfield,limits[method])
+        df=pandas.read_sql(sql,cnn.cnn())
+        df=df.set_index('contentid')
+        myconfigs=json.loads(df.to_json(orient='index'))
+
+        for x in myconfigs:
+            baseurl=config[method]['url']+gsid
+            idsjson=json.loads(myconfigs[x][idsfield])
+            tempdf=pandas.DataFrame({'ids':idsjson})
+            tpids=tempdf[tempdf['ids']>int(myconfigs[x][lastmaxidfield])]['ids']
+            for y in tpids['ids']:
+                for z in range(1,limits[method]+1):
+                    myurl=baseurl+'&id='+str(x)+'&max_id='+str(y)+'&page='+str(z)
+                    responsejob=Base.getByUrlDetail(myurl)
+                    Base.commitLog(cnn,myurl,responsejob,'{}_fullback'.format(method))
+                    time.sleep(1.2)
+                cnn.execute("update appconfigs.spider_status_contentsspider set {}={} where {}={}".format(lastmaxidfield,y,'contentid',str(x)))
+
     @staticmethod
     def getdatas(cnn,gsid,configsql,indexfield,mytype):
         '''
@@ -204,21 +239,22 @@ class Base():
         time.sleep(1.1) 
 
     @staticmethod
-    def getRepostsByContents(cnn,gsid):
+    def getRepostsByContents(cnn,gsid,create='1900-01-01',maxnum=0):
         '''
         爬取用户的转发
         '''
-        sql="select `contentid`,`repost_maxid`,`repost_minid`,`repost_isbottom`,`repost_maxpagenum` from appconfigs.spider_status_contentsspider"
+        sql="select `contentid`,`repost_maxid`,`repost_minid`,`repost_isbottom`,`repost_maxpagenum` from appconfigs.spider_status_contentsspider  where `create`>='"+create+"' or repost_maxpagenum>'"+str(maxnum)+"'"
         mytype='repost'
         indexfield='contentid'
         Base.getdatas(cnn,gsid,sql,indexfield,mytype)
         time.sleep(1.1) 
+    
     @staticmethod
-    def getCommentsByContents(cnn,gsid):
+    def getCommentsByContents(cnn,gsid,create='1900-01-01',maxnum=0):
         '''
         爬取用户的评论
         '''
-        sql="select `contentid`,`comment_maxid`,`comment_minid`,`comment_isbottom`,`comment_maxpagenum` from appconfigs.spider_status_contentsspider"
+        sql="select `contentid`,`comment_maxid`,`comment_minid`,`comment_isbottom`,`comment_maxpagenum` from appconfigs.spider_status_contentsspider   where `create`>='"+create+"' or comment_maxpagenum>'"+str(maxnum)+"'"
         mytype='comment'
         indexfield='contentid'
         Base.getdatas(cnn,gsid,sql,indexfield,mytype)
@@ -258,6 +294,7 @@ class Base():
         else:
             for x in topstar_types:
                 Base.getStarsByType(cnn,int(x))
+
 class Collect():
     '''
     订阅式的爬虫...就是指定用户天天盯着他们的发的内容及 每条内容的评论转发,然后更新
@@ -274,33 +311,50 @@ class Collect():
         t1=threading.Thread(name='getpublishes',target=Base.getContentsByUsers,args=(self.cnn,self.gsid) )
         t2=threading.Thread(name='getreposts',target=Base.getRepostsByContents,args=(self.cnn,self.gsid) )
         t3=threading.Thread(name='getcomments',target=Base.getCommentsByContents,args=(self.cnn,self.gsid) )
+        t4=threading.Thread(name='getcomments_fullback',target=Base.updatesFullback,args=(self.cnn,self.gsid,'comment') )
+        t5=threading.Thread(name='getcomments_fullback',target=Base.updatesFullback,args=(self.cnn,self.gsid,'repost') )
+
         self.threads={
             'gettopstar':t0,
             'publish':t1,
             'repost':t2,
-            'comment':t3
+            'comment':t3,
+            'comment_fullback':t4,
+            'repost_fullback':t5
             }
 
     def start(self):
-        self.threads['gettopstar'].start()
-        self.threads['publish'].start()
-        self.threads['repost'].start()
-        self.threads['comment'].start()
+        self.threads[ 'gettopstar'].start()
+        self.threads[ 'publish'].start()
+        self.threads[ 'repost'].start()
+        self.threads[ 'comment'].start()
+        self.threads[ 'comment_fullback'].start()
+        self.threads[ 'repost_fullback'].start()
         t=datetime.datetime.now()
         times={
             
             'publish':t,
             'repost':t,
-            'comment':t
+            'comment':t,
+            'comment_fullback':t,
+            'repost_fullback':t
             }
         dts={
             
-            'publish':60*60*4,
-            'repost':60*60,
-            'comment':60*60
+            'publish':10,
+            'repost':10,
+            'comment':10 ,
+            'comment_fullback':10,
+            'repost_fullback':10
             }
 
         while(True):
+            self.threads[ 'gettopstar']=threading.Thread(name='gettopstar',target=Base.getTopStars,args=(self.cnn,) )
+            self.threads[ 'publish']=threading.Thread(name='getpublishes',target=Base.getContentsByUsers,args=(self.cnn,self.gsid) )
+            self.threads[ 'repost']=threading.Thread(name='getreposts',target=Base.getRepostsByContents,args=(self.cnn,self.gsid,datetime.datetime.today()-datetime.timedelta(days=40),40) )
+            self.threads[ 'comment']=threading.Thread(name='getcomments',target=Base.getCommentsByContents,args=(self.cnn,self.gsid,datetime.datetime.today()-datetime.timedelta(days=40),40) )
+            self.threads[ 'comment_fullback']=threading.Thread(name='getcomments_fullback',target=Base.updatesFullback,args=(self.cnn,self.gsid,'comment') )
+            self.threads[ 'repost_fullback']=threading.Thread(name='getcomments_fullback',target=Base.updatesFullback,args=(self.cnn,self.gsid,'repost') )
             if datetime.datetime.now().day==5 and not self.threads ['gettopstar'].is_alive():
                 self.threads ['gettopstar'].start()
             for x in times:
@@ -308,154 +362,154 @@ class Collect():
                     self.threads[x].start()
                 times[x]=datetime.datetime.now()
 
-class UserSpider():
-    '''
-    仅仅是根据用户ID爬取ID下的全微博全评论全转发
-    现已废弃。改成了数据库交互,并且改订阅式了
-    '''
-    def __init__(self, **kwargs):
-        self.uids= kwargs['uids'] if 'uids' in kwargs.keys() else ''
-        self.gsid= kwargs['gsid'] if 'gsid' in kwargs.keys() else ''
-        self.status=json.loads(open('status.config').read())
-        print(self.status)
-        self.users=[]        
-    def getallcontents(self):
-        if os.path.isfile('contents.json'):
-            self.contentlist=json.loads(open('contents.json').read())
-        else:
-            list1=[self.getonebyuid(x) for x in self.uids]
-            self.contentlist=[y for x in list1 for y in x ]
-        print(self.contentlist)
-        df=pandas.DataFrame(self.contentlist)        
-        df=df.sort_values(by='id')
-        df=df.reset_index().drop(columns=['index'])
-        df.to_json('contents.json',orient='records')
-    def getonebyuid(self,uid):
-        res=[]
-        containerid='230413'+str(uid)+'_-_WEIBO_SECOND_PROFILE_WEIBO'
-        page=1
-        print(contentbaseurl+str(self.gsid)+'&containerid='+str(containerid)+'&page='+str(page))
-        url=contentbaseurl+str(self.gsid)+'&containerid='+str(containerid)+'&page='+str(page)
+#class UserSpider():
+#    '''a
+#    仅仅是根据用户ID爬取ID下的全微博全评论全转发
+#    现已废弃。改成了数据库交互,并且改订阅式了
+#    '''
+#    def __init__(self, **kwargs):
+#        self.uids= kwargs['uids'] if 'uids' in kwargs.keys() else ''
+#        self.gsid= kwargs['gsid'] if 'gsid' in kwargs.keys() else ''
+#        self.status=json.loads(open('status.config').read())
+#        print(self.status)
+#        self.users=[]        
+#    def getallcontents(self):
+#        if os.path.isfile('contents.json'):
+#            self.contentlist=json.loads(open('contents.json').read())
+#        else:
+#            list1=[self.getonebyuid(x) for x in self.uids]
+#            self.contentlist=[y for x in list1 for y in x ]
+#        print(self.contentlist)
+#        df=pandas.DataFrame(self.contentlist)        
+#        df=df.sort_values(by='id')
+#        df=df.reset_index().drop(columns=['index'])
+#        df.to_json('contents.json',orient='records')
+#    def getonebyuid(self,uid):
+#        res=[]
+#        containerid='230413'+str(uid)+'_-_WEIBO_SECOND_PROFILE_WEIBO'
+#        page=1
+#        print(contentbaseurl+str(self.gsid)+'&containerid='+str(containerid)+'&page='+str(page))
+#        url=contentbaseurl+str(self.gsid)+'&containerid='+str(containerid)+'&page='+str(page)
 
-        responsejob=Base.getone(url)
-        time.sleep(1.1)
-        while('page_type' in responsejob['cardlistInfo'].keys()):
+#        responsejob=Base.getByUrlDetail(url)
+#        time.sleep(1.1)
+#        while('page_type' in responsejob['cardlistInfo'].keys()):
             
-            cards=responsejob['cards']            
-            cardsdf=pandas.read_json(json.dumps(cards,ensure_ascii=False))
-            contentcardsdf=cardsdf[cardsdf.card_type==9]
-            page=page+1
-            for x in contentcardsdf.mblog:
-                res.append({'id':x['id'],'mid':x['mid']})
-            print(contentbaseurl+str(self.gsid)+'&containerid='+str(containerid)+'&page='+str(page))
-            url=contentbaseurl+str(self.gsid)+'&containerid='+str(containerid)+'&page='+str(page)
+#            cards=responsejob['cards']            
+#            cardsdf=pandas.read_json(json.dumps(cards,ensure_ascii=False))
+#            contentcardsdf=cardsdf[cardsdf.card_type==9]
+#            page=page+1
+#            for x in contentcardsdf.mblog:
+#                res.append({'id':x['id'],'mid':x['mid']})
+#            print(contentbaseurl+str(self.gsid)+'&containerid='+str(containerid)+'&page='+str(page))
+#            url=contentbaseurl+str(self.gsid)+'&containerid='+str(containerid)+'&page='+str(page)
 
-            responsejob=Base.getone(url)
-            time.sleep(1.1)
-        return res
-    def getrepostusers(self):
-        df=pandas.DataFrame(self.contentlist)        
-        df=df.sort_values(by='id')
-        df=df.reset_index().drop(columns=['index'])
-        if self.status['lastrepostcontentid']!=0:
-            indexnum=df[df['id']==self.status['lastrepostcontentid']].index[0]
-            print(indexnum)
-            df=df.reset_index()
-            df=df[df['index']>indexnum]
-            df=df.drop(columns=['index'])
-        job=json.loads(df.to_json(orient='records'))
-        time.sleep(1.1)
-        for x in job:
-            users_thiscontent=[]
-            page=1   
-            actnum=0
-            print(repostbaseurl+str(self.gsid)+'&id='+str(x['id'])+'&page='+str(page))
-            url=repostbaseurl+str(self.gsid)+'&id='+str(x['id'])+'&page='+str(page)
-            responsejob=Base.getone(url)          
-            time.sleep(1.1)
-            check=False if responsejob['reposts']==None else False if len(responsejob['reposts'])==0 else True
+#            responsejob=Base.getByUrlDetail(url)
+#            time.sleep(1.1)
+#        return res
+#    def getrepostusers(self):
+#        df=pandas.DataFrame(self.contentlist)        
+#        df=df.sort_values(by='id')
+#        df=df.reset_index().drop(columns=['index'])
+#        if self.status['lastrepostcontentid']!=0:
+#            indexnum=df[df['id']==self.status['lastrepostcontentid']].index[0]
+#            print(indexnum)
+#            df=df.reset_index()
+#            df=df[df['index']>indexnum]
+#            df=df.drop(columns=['index'])
+#        job=json.loads(df.to_json(orient='records'))
+#        time.sleep(1.1)
+#        for x in job:
+#            users_thiscontent=[]
+#            page=1   
+#            actnum=0
+#            print(repostbaseurl+str(self.gsid)+'&id='+str(x['id'])+'&page='+str(page))
+#            url=repostbaseurl+str(self.gsid)+'&id='+str(x['id'])+'&page='+str(page)
+#            responsejob=Base.getByUrlDetail(url)          
+#            time.sleep(1.1)
+#            check=False if responsejob['reposts']==None else False if len(responsejob['reposts'])==0 else True
             
-            while(check):
-                for y in responsejob['reposts']:
+#            while(check):
+#                for y in responsejob['reposts']:
                     
-                    users_thiscontent.append({'cid':x['id'],'id':y['user']['id'],'nick':y['user']['name']})
-                page=page+1
+#                    users_thiscontent.append({'cid':x['id'],'id':y['user']['id'],'nick':y['user']['name']})
+#                page=page+1
                
-                print(repostbaseurl+str(self.gsid)+'&id='+str(x['id'])+'&page='+str(page))
-                url=repostbaseurl+str(self.gsid)+'&id='+str(x['id'])+'&page='+str(page)
-                responsejob=Base.getone(url)
-                check=False if responsejob['reposts']==None else False if len(responsejob['reposts'])==0 else True
-                time.sleep(1.1)
-            self.status['lastrepostcontentid']=x['id']
-            open('status.config','w').write(json.dumps(self.status,ensure_ascii=False))
-            df=pandas.read_json(json.dumps(users_thiscontent,ensure_ascii=False))
-            df.to_csv(r'111.csv',index= False,mode='a')
-            time.sleep(1.1) 
-    def getflowusers(self):
-        df=pandas.DataFrame(self.contentlist)
-        df=df.sort_values(by='id')
-        df=df.reset_index().drop(columns=['index'])
-        if self.status['lastcommentcontentid']!=0:
-            indexnum=df[df['id']==self.status['lastcommentcontentid']].index[0]
-            df=df.reset_index()
-            df=df[df['index']>indexnum] 
-            df=df.drop(columns=['index'])
-        job=json.loads(df.to_json(orient='records'))
-        time.sleep(1.1)
-        for x in job:    
-            users_thiscontent=[]
-            print(flowbaseurl+str(self.gsid)+'&id='+str(x['id'])+'&max_id=0')
-            url=flowbaseurl+str(self.gsid)+'&id='+str(x['id'])+'&max_id=0'
-            response=requests.get(flowbaseurl+str(self.gsid)+'&id='+str(x['id'])+'&max_id=0')
-            responsejob=json.loads(response.text if response.status_code==200 else '{}')
-            while(response.status_code !=200 or 'comments' not in responsejob.keys()):
-                time.sleep(10)                
-                response=requests.get(flowbaseurl+str(self.gsid)+'&id='+str(x['id'])+'&max_id=0')
-                responsejob=json.loads(response.text if response.status_code==200 else '{}')          
+#                print(repostbaseurl+str(self.gsid)+'&id='+str(x['id'])+'&page='+str(page))
+#                url=repostbaseurl+str(self.gsid)+'&id='+str(x['id'])+'&page='+str(page)
+#                responsejob=Base.getByUrlDetail(url)
+#                check=False if responsejob['reposts']==None else False if len(responsejob['reposts'])==0 else True
+#                time.sleep(1.1)
+#            self.status['lastrepostcontentid']=x['id']
+#            open('status.config','w').write(json.dumps(self.status,ensure_ascii=False))
+#            df=pandas.read_json(json.dumps(users_thiscontent,ensure_ascii=False))
+#            df.to_csv(r'111.csv',index= False,mode='a')
+#            time.sleep(1.1) 
+#    def getflowusers(self):
+#        df=pandas.DataFrame(self.contentlist)
+#        df=df.sort_values(by='id')
+#        df=df.reset_index().drop(columns=['index'])
+#        if self.status['lastcommentcontentid']!=0:
+#            indexnum=df[df['id']==self.status['lastcommentcontentid']].index[0]
+#            df=df.reset_index()
+#            df=df[df['index']>indexnum] 
+#            df=df.drop(columns=['index'])
+#        job=json.loads(df.to_json(orient='records'))
+#        time.sleep(1.1)
+#        for x in job:    
+#            users_thiscontent=[]
+#            print(flowbaseurl+str(self.gsid)+'&id='+str(x['id'])+'&max_id=0')
+#            url=flowbaseurl+str(self.gsid)+'&id='+str(x['id'])+'&max_id=0'
+#            response=requests.get(flowbaseurl+str(self.gsid)+'&id='+str(x['id'])+'&max_id=0')
+#            responsejob=json.loads(response.text if response.status_code==200 else '{}')
+#            while(response.status_code !=200 or 'comments' not in responsejob.keys()):
+#                time.sleep(10)                
+#                response=requests.get(flowbaseurl+str(self.gsid)+'&id='+str(x['id'])+'&max_id=0')
+#                responsejob=json.loads(response.text if response.status_code==200 else '{}')          
            
-            self.pushone(responsejob,users_thiscontent,x['id'])
-            if 'max_id' in responsejob.keys():
-                while(responsejob['max_id']!=0):
-                    maxid=responsejob['max_id']
-                    url=flowbaseurl+str(self.gsid)+'&id='+str(x['id'])+'&max_id='+str(maxid)
-                    print(url)
-                    response=requests.get(url)
-                    responsejob=json.loads(response.text if response.status_code==200 else '{}')
-                    while(response.status_code !=200 or ('max_id' not in responsejob.keys())):
-                        time.sleep(10)
-                        response=requests.get(url)
-                        responsejob=json.loads(response.text if response.status_code==200 else '{}')
+#            self.pushone(responsejob,users_thiscontent,x['id'])
+#            if 'max_id' in responsejob.keys():
+#                while(responsejob['max_id']!=0):
+#                    maxid=responsejob['max_id']
+#                    url=flowbaseurl+str(self.gsid)+'&id='+str(x['id'])+'&max_id='+str(maxid)
+#                    print(url)
+#                    response=requests.get(url)
+#                    responsejob=json.loads(response.text if response.status_code==200 else '{}')
+#                    while(response.status_code !=200 or ('max_id' not in responsejob.keys())):
+#                        time.sleep(10)
+#                        response=requests.get(url)
+#                        responsejob=json.loads(response.text if response.status_code==200 else '{}')
                 
-                    self.pushone(responsejob,users_thiscontent,x['id'])
-                    time.sleep(1.1)
-                self.status['lastcommentcontentid']=x['id']
-                open('status.config','w').write(json.dumps(self.status,ensure_ascii=False))                
-                df=pandas.read_json(json.dumps(users_thiscontent,ensure_ascii=False))
-                df.to_csv(r'111.csv',index= False,mode='a')
-            time.sleep(1.1)
-    def pushone(self,jsonobject,users_this,cid):
-        for y in jsonobject['comments']:
-            users_this.append({'cid':cid,'id':y['user']['id'],'nick':y['user']['name']})
+#                    self.pushone(responsejob,users_thiscontent,x['id'])
+#                    time.sleep(1.1)
+#                self.status['lastcommentcontentid']=x['id']
+#                open('status.config','w').write(json.dumps(self.status,ensure_ascii=False))                
+#                df=pandas.read_json(json.dumps(users_thiscontent,ensure_ascii=False))
+#                df.to_csv(r'111.csv',index= False,mode='a')
+#            time.sleep(1.1)
+#    def pushone(self,jsonobject,users_this,cid):
+#        for y in jsonobject['comments']:
+#            users_this.append({'cid':cid,'id':y['user']['id'],'nick':y['user']['name']})
 
 
 
 
-class HotsSpider():
-    '''
-    https://api.weibo.cn/2/searchall?count=200&c=android&s=8915076d&from=1098495010&ua=Netease-MuMu__weibo__9.8.4__android__android6.0.1&android_id=4d0e05a6668dbdaa&gsid=_2A25yI-1YDeRxGeFK7lEV9ynLzT2IHXVveWeQrDV6PUJbkdAKLWz3kWpNQ15OQ3_sB5fh5nrmfuomrYv0H3WhoNpo&containerid=100303type%3d1%26q%3d%23%E5%9B%9B%E5%B7%9D%E4%BA%91%E7%80%91%23%26t%3d3&page=10&count=200
-    搜索话题的链接DEMO
-    暂时不写吧感觉实时热搜没啥意义....话题数据量下 适合现爬,不适合获取实时热话题爬
-    '''
-    containerid={'231648_-_3':'实时要闻'
-                 ,'106003type=25&t=3&disable_hot=1&filter_type=realtimehot':'实时热搜'
-                 ,'231648_-_4':'热议'
-                 ,'231648_-_1':'榜单'
-                 ,'106003type=25&t=3&disable_hot=1&filter_type=moderngoods&category=master':'潮物榜'
-                 ,'106003type=25&t=3&disable_hot=1&filter_type=moderngoods&category=fashion':'时尚美妆榜'
-                 ,'106003type=25&t=3&disable_hot=1&filter_type=moderngoods&category=digital':'数码榜'
-                 ,'106003type=25&t=3&disable_hot=1&filter_type=moderngoods&category=food':'美味榜单'
-                 }
-    card_type=[25,101]
+#class HotsSpider():
+#    '''
+#    https://api.weibo.cn/2/searchall?count=200&c=android&s=8915076d&from=1098495010&ua=Netease-MuMu__weibo__9.8.4__android__android6.0.1&android_id=4d0e05a6668dbdaa&gsid=_2A25yI-1YDeRxGeFK7lEV9ynLzT2IHXVveWeQrDV6PUJbkdAKLWz3kWpNQ15OQ3_sB5fh5nrmfuomrYv0H3WhoNpo&containerid=100303type%3d1%26q%3d%23%E5%9B%9B%E5%B7%9D%E4%BA%91%E7%80%91%23%26t%3d3&page=10&count=200
+#    搜索话题的链接DEMO
+#    暂时不写吧感觉实时热搜没啥意义....话题数据量下 适合现爬,不适合获取实时热话题爬
+#    '''
+#    containerid={'231648_-_3':'实时要闻'
+#                 ,'106003type=25&t=3&disable_hot=1&filter_type=realtimehot':'实时热搜'
+#                 ,'231648_-_4':'热议'
+#                 ,'231648_-_1':'榜单'
+#                 ,'106003type=25&t=3&disable_hot=1&filter_type=moderngoods&category=master':'潮物榜'
+#                 ,'106003type=25&t=3&disable_hot=1&filter_type=moderngoods&category=fashion':'时尚美妆榜'
+#                 ,'106003type=25&t=3&disable_hot=1&filter_type=moderngoods&category=digital':'数码榜'
+#                 ,'106003type=25&t=3&disable_hot=1&filter_type=moderngoods&category=food':'美味榜单'
+#                 }
+#    card_type=[25,101]
 
 
 
