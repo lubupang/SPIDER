@@ -272,7 +272,7 @@ class Base():
             Base.getByUrlDetail(url)
             responsejob=Base.getByUrlDetail(url)
             Base.commitLog(cnn,url,responsejob,'gettopstar')
-            sql1="insert into  appconfigs.spider_status_topstar(`typeid`,`startype`) values('{}','{}') on duplicate key update startype=values(startype)".format(typeid,topstar_types[str(typeid)])
+            sql1="insert into  appconfigs.spider_status_topstar(`typeid`,`startype`,`lastupdatetime`) values('{}','{}','{}') on duplicate key update lastupdatetime=values(lastupdatetime) ".format(typeid,str(datetime.datetime.now()))
             try:
                 cnn.execute(sql1)
             except Exception as e:
