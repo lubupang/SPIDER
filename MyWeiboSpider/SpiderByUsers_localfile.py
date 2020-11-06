@@ -7,8 +7,10 @@ configfile=sys.argv[1]
 configjob=json.loads(open(configfile).read())
 uids=configjob['uids']
 gsid=configjob['gsid']
+s=configjob['s']
+android_id=configjob['android_id']
 
-spider=weibospider.UserSpider(uids=uids,gsid=gsid)
+spider=weibospider.UserSpider(uids=uids,gsid=gsid,s=s,android_id=android_id)
 
 spider.getallcontents()
 

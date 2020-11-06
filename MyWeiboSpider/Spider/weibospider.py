@@ -6,13 +6,13 @@ import os.path
 import threading 
 import pymysql
 import datetime
-contentbaseurl=r'https://api.weibo.cn/2/cardlist?count=200&c=android&s={}&from=1098495010&ua=Netease-MuMu__weibo__9.8.4__android__android6.0.1&android_id={}&gsid={}'
+contentbaseurl='https://api.weibo.cn/2/cardlist?count=200&c=android&s={}&from=1098495010&ua=Netease-MuMu__weibo__9.8.4__android__android6.0.1&android_id={}&gsid={}'
 #这个抓得 感觉不怎么好用啊
-newcontentbaseurl=r'https://api.weibo.cn/2/statuses/user_timeline?count=200&c=android&s={}&from=1098495010&ua=Netease-MuMu__weibo__9.8.4__android__android6.0.1&android_id={}&gsid={}'
+newcontentbaseurl='https://api.weibo.cn/2/statuses/user_timeline?count=200&c=android&s={}&from=1098495010&ua=Netease-MuMu__weibo__9.8.4__android__android6.0.1&android_id={}&gsid={}'
 #别提了又是猜得
 
-repostbaseurl=r'https://api.weibo.cn/2/statuses/repost_timeline?count=200&c=android&s={}&from=1098495010&ua=Netease-MuMu__weibo__9.8.4__android__android6.0.1&android_id={}&gsid={}'
-flowbaseurl=r'https://api.weibo.cn/2/comments/show?count=200&is_show_bulletin=2&c=android&s={}&from=1098495010&ua=Netease-MuMu__weibo__9.8.4__android__android6.0.1&android_id={}&gsid={}'
+repostbaseurl='https://api.weibo.cn/2/statuses/repost_timeline?count=200&c=android&s={}&from=1098495010&ua=Netease-MuMu__weibo__9.8.4__android__android6.0.1&android_id={}&gsid={}'
+flowbaseurl='https://api.weibo.cn/2/comments/show?count=200&is_show_bulletin=2&c=android&s={}&from=1098495010&ua=Netease-MuMu__weibo__9.8.4__android__android6.0.1&android_id={}&gsid={}'
 topicbaseurl='https://api.weibo.cn/2/page?count=200&is_show_bulletin=2&c=android&s={}&from=1098495010&ua=Netease-MuMu__weibo__9.8.4__android__android6.0.1&android_id={}&gsid={}'
 searchurl='https://api.weibo.cn/2/searchall?count=200&c=android&s={}&from=1098495010&ua=Netease-MuMu__weibo__9.8.4__android__android6.0.1&android_id={}&gsid={}'
 topstarurl='https://topstar.h5.weibo.cn/rank/list?sort=rank&limit=50'
@@ -461,8 +461,8 @@ class UserSpider():
         res=[]
         containerid='230413'+str(uid)+'_-_WEIBO_SECOND_PROFILE_WEIBO'
         page=1
-        print(newcontentbaseurl.format(str(self.s),str(self.android_id),str(self.gsid))+'&containerid='+str(containerid)+'&page='+str(page))
-        url=newcontentbaseurl.format(str(self.s),str(self.android_id),str(self.gsid))+'&containerid='+str(containerid)+'&page='+str(page)
+        print(contentbaseurl.format(str(self.s),str(self.android_id),str(self.gsid))+'&containerid='+str(containerid)+'&page='+str(page))
+        url=contentbaseurl.format(str(self.s),str(self.android_id),str(self.gsid))+'&containerid='+str(containerid)+'&page='+str(page)
 
         responsejob=Base.getByUrlDetail(url)
         time.sleep(1.1)
@@ -474,8 +474,8 @@ class UserSpider():
             page=page+1
             for x in contentcardsdf.mblog:
                 res.append({'id':x['id'],'mid':x['mid']})
-            print(newcontentbaseurl.format(str(self.s),str(self.android_id),str(self.gsid))+'&containerid='+str(containerid)+'&page='+str(page))
-            url=newcontentbaseurl.format(str(self.s),str(self.android_id),str(self.gsid))+'&containerid='+str(containerid)+'&page='+str(page)
+            
+            url=contentbaseurl.format(str(self.s),str(self.android_id),str(self.gsid))+'&containerid='+str(containerid)+'&page='+str(page)
 
             responsejob=Base.getByUrlDetail(url)
             time.sleep(1.1)
@@ -508,7 +508,7 @@ class UserSpider():
                     users_thiscontent.append({'cid':x['id'],'id':y['user']['id'],'nick':y['user']['name']})
                 page=page+1
                
-                print(repostbaseurl.format(str(self.s),str(self.android_id),str(self.gsid))+'&id='+str(x['id'])+'&page='+str(page))
+                
                 url=repostbaseurl.format(str(self.s),str(self.android_id),str(self.gsid))+'&id='+str(x['id'])+'&page='+str(page)
                 responsejob=Base.getByUrlDetail(url)
                 check=False if responsejob['reposts']==None else False if len(responsejob['reposts'])==0 else True
@@ -546,7 +546,7 @@ class UserSpider():
                     users_thiscontent.append({'cid':x['id'],'id':y['user']['id'],'nick':y['user']['name']})
                 page=page+1
                
-                print(flowbaseurl+str(self.gsid)+'&id='+str(x['id'])+'&page='+str(page))
+                
                 url=flowbaseurl+str(self.gsid)+'&id='+str(x['id'])+'&page='+str(page)
                 responsejob=Base.getByUrlDetail(url)
                 check=False if 'comments' not in responsejob.keys() else False if responsejob['comments']==None else False if len(responsejob['comments'])==0 else True
