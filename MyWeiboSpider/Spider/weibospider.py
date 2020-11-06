@@ -124,12 +124,11 @@ class Base():
             url=baseurl+'&page='+str(page)
             responsejob=Base.getByUrlDetail(url)            
             
-            ids=[] if config[myconf.mytype]['key'] not in responsejob.keys() else [] if responsejob[config[myconf.mytype]['key']]==None else [x['id'] for x in responsejob[config[myconf.mytype]['key']]] 
- 
-            
+            ids=[] if config[myconf.mytype]['key'] not in responsejob.keys() else [] if responsejob[config[myconf.mytype]['key']]==None else [x['id'] for x in responsejob[config[myconf.mytype]['key']]]            
+           
             if ids!=[]:
                 Base.commitLog(cnn,url,responsejob,method)
-                actmaxid=actmaxid=max(max(ids),actmaxid)
+                actmaxid=max(max(ids),actmaxid)
                 actminid=min(min(ids),actminid) if actminid!=-1 else min(ids)
                 actmaxpagenum=max(myconf.maxpagenum,page)                
                 try:
@@ -257,7 +256,7 @@ class Base():
         status=status.set_index(indexfield)
         status_job=json.loads(status.to_json(orient='index'))
         
-        baseurl=config[mytype]['url'].format(s,aid,gsid)
+        baseurl=config[mytype]['url'].format(s,aid,gsid)        
         for x in status_job:
             myconf=Config(x,status_job[x][maxidfield],status_job[x][minidfield],status_job[x][isbottomfield],status_job[x][maxpagefield],mytype)
             myurl=baseurl+'&{}={}'.format(idfield,x)
@@ -269,18 +268,12 @@ class Base():
         '''
         爬取用户发布的微博
         '''
-        l=0
-        sql0="select min(level) as l from appconfigs.spider_status_userspider where level>'{}'".format(str(l))
-        df0=pandas.read_sql(sql0,cnn.cnn())
-        l=df0['l'][0]
-        while l!=99:
-            sql="select `userid`,`maxid`,`minid`,`isbottom`,`maxpagenum` from appconfigs.spider_status_userspider where level="+str(l)+";"
-            mytype='publish'
-            indexfield='userid'
-            Base.getdatas(cnn,s,aid,gsid,sql,indexfield,mytype)
-            df0=pandas.read_sql(sql0,cnn.cnn())
-            l=df0['l'][0]
-            time.sleep(1.1) 
+
+        sql="select `userid`,`maxid`,`minid`,`isbottom`,`maxpagenum` from appconfigs.spider_status_userspider where level!='99';"
+        mytype='publish'
+        indexfield='userid'
+        Base.getdatas(cnn,s,aid,gsid,sql,indexfield,mytype)
+        time.sleep(1.1) 
 
     @staticmethod
     def getRepostsByContents(cnn,s,aid,gsid,create='1900-01-01',maxnum=0):
