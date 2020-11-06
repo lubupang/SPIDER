@@ -372,11 +372,11 @@ class Collect():
         self.dbname=kwargs['database'] if 'database' in kwargs.keys() else ''
         self.cnn=Connection(self.host,self.port,self.user,self.password,self.dbname)
         t0=threading.Thread(name='gettopstar',target=Base.getTopStars,args=(self.cnn,) )
-        t1=threading.Thread(name='getpublishes',target=Base.getContentsByUsers,args=(self.cnn,self.s,self.androidid,self.gsid) )
-        t2=threading.Thread(name='getreposts',target=Base.getRepostsByContents,args=(self.cnn,self.s,self.androidid,self.gsid) )
-        t3=threading.Thread(name='getcomments',target=Base.getCommentsByContents,args=(self.cnn,self.s,self.androidid,self.gsid) )
-        t4=threading.Thread(name='getcomments_fullback',target=Base.updatesFullback,args=(self.cnn,self.s,self.androidid,self.gsid,'comment') )
-        t5=threading.Thread(name='getcomments_fullback',target=Base.updatesFullback,args=(self.cnn,self.s,self.androidid,self.gsid,'repost') )
+        t1=threading.Thread(name='getpublishes',target=Base.getContentsByUsers,args=(self.cnn,self.s,self.android_id,self.gsid) )
+        t2=threading.Thread(name='getreposts',target=Base.getRepostsByContents,args=(self.cnn,self.s,self.android_id,self.gsid) )
+        t3=threading.Thread(name='getcomments',target=Base.getCommentsByContents,args=(self.cnn,self.s,self.android_id,self.gsid) )
+        t4=threading.Thread(name='getcomments_fullback',target=Base.updatesFullback,args=(self.cnn,self.s,self.android_id,self.gsid,'comment') )
+        t5=threading.Thread(name='getcomments_fullback',target=Base.updatesFullback,args=(self.cnn,self.s,self.android_id,self.gsid,'repost') )
 
         self.threads={
             'gettopstar':t0,
@@ -419,9 +419,9 @@ class Collect():
 
         while(True):
             self.threads[ 'gettopstar']=threading.Thread(name='gettopstar',target=Base.getTopStars,args=(self.cnn,) )
-            self.threads[ 'publish']=threading.Thread(name='getpublishes',target=Base.getContentsByUsers,args=(self.cnn,self.gsid) )
-            self.threads[ 'repost']=threading.Thread(name='getreposts',target=Base.getRepostsByContents,args=(self.cnn,self.gsid,datetime.datetime.today()-datetime.timedelta(days=40),40) )
-            self.threads[ 'comment']=threading.Thread(name='getcomments',target=Base.getCommentsByContents,args=(self.cnn,self.gsid,datetime.datetime.today()-datetime.timedelta(days=40),40) )
+            self.threads[ 'publish']=threading.Thread(name='getpublishes',target=Base.getContentsByUsers,args=(self.cnn,self.s,self.android_id,self.gsid) )
+            self.threads[ 'repost']=threading.Thread(name='getreposts',target=Base.getRepostsByContents,args=(self.cnn,self.s,self.android_id,self.gsid,datetime.datetime.today()-datetime.timedelta(days=40),40) )
+            self.threads[ 'comment']=threading.Thread(name='getcomments',target=Base.getCommentsByContents,args=(self.cnn,self.s,self.android_id,self.gsid,datetime.datetime.today()-datetime.timedelta(days=40),40) )
             #self.threads[ 'comment_fullback']=threading.Thread(name='getcomments_fullback',target=Base.updatesFullback,args=(self.cnn,self.gsid,'comment') )
             #self.threads[ 'repost_fullback']=threading.Thread(name='getcomments_fullback',target=Base.updatesFullback,args=(self.cnn,self.gsid,'repost') )
             if datetime.datetime.now().day==5 and not self.threads ['gettopstar'].is_alive():
