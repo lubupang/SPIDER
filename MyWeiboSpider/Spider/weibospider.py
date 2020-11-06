@@ -49,7 +49,7 @@ class Connection():
             tempcnn=pymysql.Connect(host=self.host,port=self.port,user=self.user,password=self.password,database=self.dbname)
             return tempcnn
         except Exception as e:
-            print(e)
+            print('cnn faild')
             return False
     def execute(self,sql):
         mycnn=self.cnn()
@@ -193,6 +193,9 @@ class Base():
         time.sleep(1.1)
 
     def updatesFullback(cnn,gsid,method):
+
+
+
         
         lastmaxidfield=method+'_fullback_lastmaxid'
         idsfield=method+'_ids'
@@ -266,37 +269,56 @@ class Base():
         '''
         爬取用户发布的微博
         '''
-        
-
-        sql="select `userid`,`maxid`,`minid`,`isbottom`,`maxpagenum` from appconfigs.spider_status_userspider;"
-        mytype='publish'
-        indexfield='userid'
-        Base.getdatas(cnn,gsid,sql,indexfield,mytype)
-        time.sleep(1.1) 
+        sql0="select min(level) as l from appconfigs.spider_status_userspider"
+        df0=pandas.read_sql(sql0,cnn.cnn())
+        l=df0['l'][0]
+        while l!=99:
+            sql="select `userid`,`maxid`,`minid`,`isbottom`,`maxpagenum` from appconfigs.spider_status_userspider where level="+str(l)+";"
+            mytype='publish'
+            indexfield='userid'
+            Base.getdatas(cnn,gsid,sql,indexfield,mytype)
+            df0=pandas.read_sql(sql0,cnn.cnn())
+            l=df0['l'][0]
+            time.sleep(1.1) 
 
     @staticmethod
     def getRepostsByContents(cnn,gsid,create='1900-01-01',maxnum=0):
         '''
         爬取用户的转发
+
         '''
-        
-        sql="select `contentid`,`repost_maxid`,`repost_minid`,`repost_isbottom`,`repost_maxpagenum` from appconfigs.spider_status_contentsspider  where (`create`>='"+create+"' or repost_maxpagenum>'"+str(maxnum)+"')  and repost_isbottom='false';"
-        mytype='repost'
-        indexfield='contentid'
-        Base.getdatas(cnn,gsid,sql,indexfield,mytype)
-        time.sleep(1.1) 
+        l=0
+        sql0="select min(level) as l from appconfigs.spider_status_contentsspider where `level`>'{}'".format(str(l))
+        df0=pandas.read_sql(sql0,cnn.cnn())
+        l=df0['l'][0]
+        while l!=99:        
+            sql="select `contentid`,`repost_maxid`,`repost_minid`,`repost_isbottom`,`repost_maxpagenum` from appconfigs.spider_status_contentsspider  where (`create`>='"+create+"' or repost_maxpagenum>'"+str(maxnum)+"')  and repost_isbottom='false' and `level`="+str(l)+";"
+            mytype='repost'
+            indexfield='contentid'
+            Base.getdatas(cnn,gsid,sql,indexfield,mytype)
+            sql0="select min(level) as l from appconfigs.spider_status_contentsspider where `level`>'{}'".format(str(l))
+            df0=pandas.read_sql(sql0,cnn.cnn())
+            l=df0['l'][0]
+            time.sleep(1.1) 
     
     @staticmethod
     def getCommentsByContents(cnn,gsid,create='1900-01-01',maxnum=0):
         '''
         爬取用户的评论
         '''
-        
-        sql="select `contentid`,`comment_maxid`,`comment_minid`,`comment_isbottom`,`comment_maxpagenum` from appconfigs.spider_status_contentsspider   where (`create`>='"+create+"' or comment_maxpagenum>'"+str(maxnum)+"') and comment_isbottom='false';"
-        mytype='comment'
-        indexfield='contentid'
-        Base.getdatas(cnn,gsid,sql,indexfield,mytype)
-        time.sleep(1.1) 
+        l=0
+        sql0="select min(level) as l from appconfigs.spider_status_contentsspider where `level`>'{}'".format(str(l))
+        df0=pandas.read_sql(sql0,cnn.cnn())
+        l=df0['l'][0]
+        while l!=99:        
+            sql="select `contentid`,`comment_maxid`,`comment_minid`,`comment_isbottom`,`comment_maxpagenum` from appconfigs.spider_status_contentsspider   where (`create`>='"+create+"' or comment_maxpagenum>'"+str(maxnum)+"') and comment_isbottom='false' and `level`="+str(l)+";"
+            mytype='comment'
+            indexfield='contentid'
+            Base.getdatas(cnn,gsid,sql,indexfield,mytype)
+            sql0="select min(level) as l from appconfigs.spider_status_contentsspider where `level`>'{}'".format(str(l))
+            df0=pandas.read_sql(sql0,cnn.cnn())
+            l=df0['l'][0]
+            time.sleep(1.1) 
 
     @staticmethod
     def getStarsByType(cnn,typeid):
@@ -372,9 +394,9 @@ class Collect():
         time.sleep(5)
         self.threads[ 'comment'].start()
         time.sleep(5)
-        self.threads[ 'comment_fullback'].start()
-        time.sleep(5)
-        self.threads[ 'repost_fullback'].start()
+        #self.threads[ 'comment_fullback'].start()
+        #time.sleep(5)
+        #self.threads[ 'repost_fullback'].start()
         t=datetime.datetime.now()
         times={
             
@@ -398,8 +420,8 @@ class Collect():
             self.threads[ 'publish']=threading.Thread(name='getpublishes',target=Base.getContentsByUsers,args=(self.cnn,self.gsid) )
             self.threads[ 'repost']=threading.Thread(name='getreposts',target=Base.getRepostsByContents,args=(self.cnn,self.gsid,datetime.datetime.today()-datetime.timedelta(days=40),40) )
             self.threads[ 'comment']=threading.Thread(name='getcomments',target=Base.getCommentsByContents,args=(self.cnn,self.gsid,datetime.datetime.today()-datetime.timedelta(days=40),40) )
-            self.threads[ 'comment_fullback']=threading.Thread(name='getcomments_fullback',target=Base.updatesFullback,args=(self.cnn,self.gsid,'comment') )
-            self.threads[ 'repost_fullback']=threading.Thread(name='getcomments_fullback',target=Base.updatesFullback,args=(self.cnn,self.gsid,'repost') )
+            #self.threads[ 'comment_fullback']=threading.Thread(name='getcomments_fullback',target=Base.updatesFullback,args=(self.cnn,self.gsid,'comment') )
+            #self.threads[ 'repost_fullback']=threading.Thread(name='getcomments_fullback',target=Base.updatesFullback,args=(self.cnn,self.gsid,'repost') )
             if datetime.datetime.now().day==5 and not self.threads ['gettopstar'].is_alive():
                 self.threads ['gettopstar'].start()
                 time.sleep(5)
@@ -490,7 +512,7 @@ class UserSpider():
             self.status['lastrepostcontentid']=x['id']
             open('status.config','w').write(json.dumps(self.status,ensure_ascii=False))
             df=pandas.read_json(json.dumps(users_thiscontent,ensure_ascii=False))
-            df.to_csv(r'111.csv',index= False,mode='a')
+            df.to_csv(r'111.csv',index= False,mode='a',header=False)
             time.sleep(1.1) 
     def getflowusers(self):
         df=pandas.DataFrame(self.contentlist)        
@@ -528,7 +550,7 @@ class UserSpider():
             self.status['lastcommentcontentid']=x['id']
             open('status.config','w').write(json.dumps(self.status,ensure_ascii=False))
             df=pandas.read_json(json.dumps(users_thiscontent,ensure_ascii=False))
-            df.to_csv(r'111.csv',index= False,mode='a')
+            df.to_csv(r'111.csv',index= False,mode='a',header=False)
             time.sleep(1.1) 
 
 
