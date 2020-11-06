@@ -6,15 +6,15 @@ import os.path
 import threading 
 import pymysql
 import datetime
-contentbaseurl=r'https://api.weibo.cn/2/cardlist?count=200&c=android&s=8915076d&from=1098495010&ua=Netease-MuMu__weibo__9.8.4__android__android6.0.1&android_id=4d0e05a6668dbdaa&gsid='
+contentbaseurl=r'https://api.weibo.cn/2/cardlist?count=200&c=android&s={}&from=1098495010&ua=Netease-MuMu__weibo__9.8.4__android__android6.0.1&android_id={}&gsid={}'
 #这个抓得 感觉不怎么好用啊
-newcontentbaseurl=r'https://api.weibo.cn/2/statuses/user_timeline?count=200&c=android&s=8915076d&from=1098495010&ua=Netease-MuMu__weibo__9.8.4__android__android6.0.1&android_id=4d0e05a6668dbdaa&gsid='
+newcontentbaseurl=r'https://api.weibo.cn/2/statuses/user_timeline?count=200&c=android&s={}&from=1098495010&ua=Netease-MuMu__weibo__9.8.4__android__android6.0.1&android_id={}&gsid={}'
 #别提了又是猜得
 
-repostbaseurl=r'https://api.weibo.cn/2/statuses/repost_timeline?count=200&c=android&s=8915076d&from=1098495010&ua=Netease-MuMu__weibo__9.8.4__android__android6.0.1&android_id=4d0e05a6668dbdaa&gsid='
-flowbaseurl=r'https://api.weibo.cn/2/comments/show?count=200&is_show_bulletin=2&c=android&s=8915076d&from=1098495010&ua=Netease-MuMu__weibo__9.8.4__android__android6.0.1&android_id=4d0e05a6668dbdaa&gsid='
-topicbaseurl='https://api.weibo.cn/2/page?count=200&is_show_bulletin=2&c=android&s=8915076d&from=1098495010&ua=Netease-MuMu__weibo__9.8.4__android__android6.0.1&android_id=4d0e05a6668dbdaa&gsid='
-searchurl='https://api.weibo.cn/2/searchall?count=200&c=android&s=8915076d&from=1098495010&ua=Netease-MuMu__weibo__9.8.4__android__android6.0.1&android_id=4d0e05a6668dbdaa&gsid='
+repostbaseurl=r'https://api.weibo.cn/2/statuses/repost_timeline?count=200&c=android&s={}&from=1098495010&ua=Netease-MuMu__weibo__9.8.4__android__android6.0.1&android_id={}&gsid={}'
+flowbaseurl=r'https://api.weibo.cn/2/comments/show?count=200&is_show_bulletin=2&c=android&s={}&from=1098495010&ua=Netease-MuMu__weibo__9.8.4__android__android6.0.1&android_id={}&gsid={}'
+topicbaseurl='https://api.weibo.cn/2/page?count=200&is_show_bulletin=2&c=android&s={}&from=1098495010&ua=Netease-MuMu__weibo__9.8.4__android__android6.0.1&android_id={}&gsid={}'
+searchurl='https://api.weibo.cn/2/searchall?count=200&c=android&s={}&from=1098495010&ua=Netease-MuMu__weibo__9.8.4__android__android6.0.1&android_id={}&gsid={}'
 topstarurl='https://topstar.h5.weibo.cn/rank/list?sort=rank&limit=50'
 
 config={
@@ -192,7 +192,7 @@ class Base():
         #如果没爬到底就往后爬
         time.sleep(1.1)
 
-    def updatesFullback(cnn,gsid,method):
+    def updatesFullback(cnn,s,aid,gsid,method):
 
 
 
@@ -213,7 +213,7 @@ class Base():
         myconfigs=json.loads(df.to_json(orient='index'))
 
         for x in myconfigs:           
-            baseurl=config[method]['url']+gsid
+            baseurl=config[method]['url'].format(s,aid,gsid)
             idsjson=json.loads(myconfigs[x][idsfield])
             tempdf=pandas.DataFrame({'ids':idsjson})
             tempdf=tempdf.sort_values(by=['ids'],ascending=[False])
@@ -234,7 +234,7 @@ class Base():
                 cnn.execute("update appconfigs.spider_status_contentsspider set {}={} where {}={}".format(lastmaxidfield,y,'contentid',str(x)))
 
     @staticmethod
-    def getdatas(cnn,gsid,configsql,indexfield,mytype):
+    def getdatas(cnn,s,aid,gsid,configsql,indexfield,mytype):
         '''
         实现updates
         '''
@@ -257,7 +257,7 @@ class Base():
         status=status.set_index(indexfield)
         status_job=json.loads(status.to_json(orient='index'))
         
-        baseurl=config[mytype]['url']+gsid
+        baseurl=config[mytype]['url'].format(s,aid,gsid)
         for x in status_job:
             myconf=Config(x,status_job[x][maxidfield],status_job[x][minidfield],status_job[x][isbottomfield],status_job[x][maxpagefield],mytype)
             myurl=baseurl+'&{}={}'.format(idfield,x)
@@ -265,7 +265,7 @@ class Base():
             Base.updates(cnn,myurl,myconf,mytype)
 
     @staticmethod
-    def getContentsByUsers(cnn,gsid):
+    def getContentsByUsers(cnn,s,aid,gsid):
         '''
         爬取用户发布的微博
         '''
@@ -276,13 +276,13 @@ class Base():
             sql="select `userid`,`maxid`,`minid`,`isbottom`,`maxpagenum` from appconfigs.spider_status_userspider where level="+str(l)+";"
             mytype='publish'
             indexfield='userid'
-            Base.getdatas(cnn,gsid,sql,indexfield,mytype)
+            Base.getdatas(cnn,s,aid,gsid,sql,indexfield,mytype)
             df0=pandas.read_sql(sql0,cnn.cnn())
             l=df0['l'][0]
             time.sleep(1.1) 
 
     @staticmethod
-    def getRepostsByContents(cnn,gsid,create='1900-01-01',maxnum=0):
+    def getRepostsByContents(cnn,s,aid,gsid,create='1900-01-01',maxnum=0):
         '''
         爬取用户的转发
 
@@ -295,14 +295,14 @@ class Base():
             sql="select `contentid`,`repost_maxid`,`repost_minid`,`repost_isbottom`,`repost_maxpagenum` from appconfigs.spider_status_contentsspider  where (`create`>='"+create+"' or repost_maxpagenum>'"+str(maxnum)+"')  and repost_isbottom='false' and `level`="+str(l)+";"
             mytype='repost'
             indexfield='contentid'
-            Base.getdatas(cnn,gsid,sql,indexfield,mytype)
+            Base.getdatas(cnn,s,aid,gsid,sql,indexfield,mytype)
             sql0="select min(level) as l from appconfigs.spider_status_contentsspider where `level`>'{}'".format(str(l))
             df0=pandas.read_sql(sql0,cnn.cnn())
             l=df0['l'][0]
             time.sleep(1.1) 
     
     @staticmethod
-    def getCommentsByContents(cnn,gsid,create='1900-01-01',maxnum=0):
+    def getCommentsByContents(cnn,s,aid,gsid,create='1900-01-01',maxnum=0):
         '''
         爬取用户的评论
         '''
@@ -314,7 +314,7 @@ class Base():
             sql="select `contentid`,`comment_maxid`,`comment_minid`,`comment_isbottom`,`comment_maxpagenum` from appconfigs.spider_status_contentsspider   where (`create`>='"+create+"' or comment_maxpagenum>'"+str(maxnum)+"') and comment_isbottom='false' and `level`="+str(l)+";"
             mytype='comment'
             indexfield='contentid'
-            Base.getdatas(cnn,gsid,sql,indexfield,mytype)
+            Base.getdatas(cnn,s,aid,gsid,sql,indexfield,mytype)
             sql0="select min(level) as l from appconfigs.spider_status_contentsspider where `level`>'{}'".format(str(l))
             df0=pandas.read_sql(sql0,cnn.cnn())
             l=df0['l'][0]
@@ -363,6 +363,8 @@ class Collect():
     '''
     def __init__(self,**kwargs):
         self.gsid= kwargs['gsid'] if 'gsid' in kwargs.keys() else ''
+        self.s= kwargs['s'] if 's' in kwargs.keys() else ''
+        self.android_id= kwargs['android_id'] if 'android_id' in kwargs.keys() else ''
         self.host= kwargs['host'] if 'host' in kwargs.keys() else '127.0.0.1'
         self.port= kwargs['port'] if 'port' in kwargs.keys() else 3306
         self.user= kwargs['user'] if 'user' in kwargs.keys() else 'root'
@@ -370,11 +372,11 @@ class Collect():
         self.dbname=kwargs['database'] if 'database' in kwargs.keys() else ''
         self.cnn=Connection(self.host,self.port,self.user,self.password,self.dbname)
         t0=threading.Thread(name='gettopstar',target=Base.getTopStars,args=(self.cnn,) )
-        t1=threading.Thread(name='getpublishes',target=Base.getContentsByUsers,args=(self.cnn,self.gsid) )
-        t2=threading.Thread(name='getreposts',target=Base.getRepostsByContents,args=(self.cnn,self.gsid) )
-        t3=threading.Thread(name='getcomments',target=Base.getCommentsByContents,args=(self.cnn,self.gsid) )
-        t4=threading.Thread(name='getcomments_fullback',target=Base.updatesFullback,args=(self.cnn,self.gsid,'comment') )
-        t5=threading.Thread(name='getcomments_fullback',target=Base.updatesFullback,args=(self.cnn,self.gsid,'repost') )
+        t1=threading.Thread(name='getpublishes',target=Base.getContentsByUsers,args=(self.cnn,self.s,self.androidid,self.gsid) )
+        t2=threading.Thread(name='getreposts',target=Base.getRepostsByContents,args=(self.cnn,self.s,self.androidid,self.gsid) )
+        t3=threading.Thread(name='getcomments',target=Base.getCommentsByContents,args=(self.cnn,self.s,self.androidid,self.gsid) )
+        t4=threading.Thread(name='getcomments_fullback',target=Base.updatesFullback,args=(self.cnn,self.s,self.androidid,self.gsid,'comment') )
+        t5=threading.Thread(name='getcomments_fullback',target=Base.updatesFullback,args=(self.cnn,self.s,self.androidid,self.gsid,'repost') )
 
         self.threads={
             'gettopstar':t0,
@@ -439,6 +441,8 @@ class UserSpider():
     def __init__(self, **kwargs):
         self.uids= kwargs['uids'] if 'uids' in kwargs.keys() else ''
         self.gsid= kwargs['gsid'] if 'gsid' in kwargs.keys() else ''
+        self.s= kwargs['s'] if 's' in kwargs.keys() else ''
+        self.android_id= kwargs['android_id'] if 'android_id' in kwargs.keys() else ''
         self.status=json.loads(open('status.config').read())
         print(self.status)
         self.users=[]        
@@ -457,8 +461,8 @@ class UserSpider():
         res=[]
         containerid='230413'+str(uid)+'_-_WEIBO_SECOND_PROFILE_WEIBO'
         page=1
-        print(contentbaseurl+str(self.gsid)+'&containerid='+str(containerid)+'&page='+str(page))
-        url=contentbaseurl+str(self.gsid)+'&containerid='+str(containerid)+'&page='+str(page)
+        print(newcontentbaseurl.format(str(self.s),str(self.android_id),str(self.gsid))+'&containerid='+str(containerid)+'&page='+str(page))
+        url=newcontentbaseurl.format(str(self.s),str(self.android_id),str(self.gsid))+'&containerid='+str(containerid)+'&page='+str(page)
 
         responsejob=Base.getByUrlDetail(url)
         time.sleep(1.1)
@@ -470,8 +474,8 @@ class UserSpider():
             page=page+1
             for x in contentcardsdf.mblog:
                 res.append({'id':x['id'],'mid':x['mid']})
-            print(contentbaseurl+str(self.gsid)+'&containerid='+str(containerid)+'&page='+str(page))
-            url=contentbaseurl+str(self.gsid)+'&containerid='+str(containerid)+'&page='+str(page)
+            print(newcontentbaseurl.format(str(self.s),str(self.android_id),str(self.gsid))+'&containerid='+str(containerid)+'&page='+str(page))
+            url=newcontentbaseurl.format(str(self.s),str(self.android_id),str(self.gsid))+'&containerid='+str(containerid)+'&page='+str(page)
 
             responsejob=Base.getByUrlDetail(url)
             time.sleep(1.1)
@@ -492,8 +496,8 @@ class UserSpider():
             users_thiscontent=[]
             page=1   
             actnum=0
-            print(repostbaseurl+str(self.gsid)+'&id='+str(x['id'])+'&page='+str(page))
-            url=repostbaseurl+str(self.gsid)+'&id='+str(x['id'])+'&page='+str(page)
+            print(repostbaseurl.format(str(self.s),str(self.android_id),str(self.gsid))+'&id='+str(x['id'])+'&page='+str(page))
+            url=repostbaseurl.format(str(self.s),str(self.android_id),str(self.gsid))+'&id='+str(x['id'])+'&page='+str(page)
             responsejob=Base.getByUrlDetail(url)          
             time.sleep(1.1)
             check=False if responsejob['reposts']==None else False if len(responsejob['reposts'])==0 else True
@@ -504,8 +508,8 @@ class UserSpider():
                     users_thiscontent.append({'cid':x['id'],'id':y['user']['id'],'nick':y['user']['name']})
                 page=page+1
                
-                print(repostbaseurl+str(self.gsid)+'&id='+str(x['id'])+'&page='+str(page))
-                url=repostbaseurl+str(self.gsid)+'&id='+str(x['id'])+'&page='+str(page)
+                print(repostbaseurl.format(str(self.s),str(self.android_id),str(self.gsid))+'&id='+str(x['id'])+'&page='+str(page))
+                url=repostbaseurl.format(str(self.s),str(self.android_id),str(self.gsid))+'&id='+str(x['id'])+'&page='+str(page)
                 responsejob=Base.getByUrlDetail(url)
                 check=False if responsejob['reposts']==None else False if len(responsejob['reposts'])==0 else True
                 time.sleep(1.1)
@@ -557,22 +561,7 @@ class UserSpider():
 
 
 
-class HotsSpider():
-    '''
-    https://api.weibo.cn/2/searchall?count=200&c=android&s=8915076d&from=1098495010&ua=Netease-MuMu__weibo__9.8.4__android__android6.0.1&android_id=4d0e05a6668dbdaa&gsid=_2A25yI-1YDeRxGeFK7lEV9ynLzT2IHXVveWeQrDV6PUJbkdAKLWz3kWpNQ15OQ3_sB5fh5nrmfuomrYv0H3WhoNpo&containerid=100303type%3d1%26q%3d%23%E5%9B%9B%E5%B7%9D%E4%BA%91%E7%80%91%23%26t%3d3&page=10&count=200
-    搜索话题的链接DEMO
-    暂时不写吧感觉实时热搜没啥意义....话题数据量下 适合现爬,不适合获取实时热话题爬
-    '''
-    containerid={'231648_-_3':'实时要闻'
-                 ,'106003type=25&t=3&disable_hot=1&filter_type=realtimehot':'实时热搜'
-                 ,'231648_-_4':'热议'
-                 ,'231648_-_1':'榜单'
-                 ,'106003type=25&t=3&disable_hot=1&filter_type=moderngoods&category=master':'潮物榜'
-                 ,'106003type=25&t=3&disable_hot=1&filter_type=moderngoods&category=fashion':'时尚美妆榜'
-                 ,'106003type=25&t=3&disable_hot=1&filter_type=moderngoods&category=digital':'数码榜'
-                 ,'106003type=25&t=3&disable_hot=1&filter_type=moderngoods&category=food':'美味榜单'
-                 }
-    card_type=[25,101]
+
 
 
 

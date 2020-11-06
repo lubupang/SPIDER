@@ -1,10 +1,12 @@
 {
   "uids": [ 1772576793 ],
   "gsid": "_2A25yI-1YDeRxGeFK7lEV9ynLzT2IHXVveWeQrDV6PUJbkdAKLWz3kWpNQ15OQ3_sB5fh5nrmfuomrYv0H3WhoNpo",
-  "host": "192.168.1.254",
+  "host": "192.168.1.188",
   "port": 3306,
   "user": "rrfetl",
   "psd": "rrfAdmin123!@#",
-  "database": "appconfigs"
+  "database": "appconfigs",
+  "s": "8915076d",
+  "android_id": "4d0e05a6668dbdaa"
 
 }
