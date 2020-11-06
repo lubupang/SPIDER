@@ -461,7 +461,7 @@ class UserSpider():
         res=[]
         containerid='230413'+str(uid)+'_-_WEIBO_SECOND_PROFILE_WEIBO'
         page=1
-        print(contentbaseurl.format(str(self.s),str(self.android_id),str(self.gsid))+'&containerid='+str(containerid)+'&page='+str(page))
+     
         url=contentbaseurl.format(str(self.s),str(self.android_id),str(self.gsid))+'&containerid='+str(containerid)+'&page='+str(page)
 
         responsejob=Base.getByUrlDetail(url)
@@ -496,7 +496,7 @@ class UserSpider():
             users_thiscontent=[]
             page=1   
             actnum=0
-            print(repostbaseurl.format(str(self.s),str(self.android_id),str(self.gsid))+'&id='+str(x['id'])+'&page='+str(page))
+            
             url=repostbaseurl.format(str(self.s),str(self.android_id),str(self.gsid))+'&id='+str(x['id'])+'&page='+str(page)
             responsejob=Base.getByUrlDetail(url)          
             time.sleep(1.1)
@@ -534,7 +534,7 @@ class UserSpider():
             users_thiscontent=[]
             page=1   
             actnum=0
-            print(flowbaseurl+str(self.gsid)+'&id='+str(x['id'])+'&page='+str(page))
+            
             url=flowbaseurl+str(self.gsid)+'&id='+str(x['id'])+'&page='+str(page)
             responsejob=Base.getByUrlDetail(url)          
             time.sleep(1.1)
