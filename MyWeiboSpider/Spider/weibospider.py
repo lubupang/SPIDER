@@ -269,7 +269,8 @@ class Base():
         '''
         爬取用户发布的微博
         '''
-        sql0="select min(level) as l from appconfigs.spider_status_userspider"
+        l=0
+        sql0="select min(level) as l from appconfigs.spider_status_userspider where level>'{}'".format(str(l))
         df0=pandas.read_sql(sql0,cnn.cnn())
         l=df0['l'][0]
         while l!=99:
