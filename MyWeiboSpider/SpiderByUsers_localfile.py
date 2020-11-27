@@ -18,7 +18,8 @@ spider.getrepostusers()
 spider.getflowusers()
 
 print("用户数据已写入 111.csv")
-df=pandas.read_csv('111.csv')
+df=pandas.read_csv('111.csv',header=None)
+df=df.rename(columns={0:'cid',1:'id',2:'nick'})
 df=df[df.id!='id']
 df=df.groupby(by=['id','nick']).count()
 df=df.reset_index()
