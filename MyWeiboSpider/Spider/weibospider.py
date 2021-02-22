@@ -6,6 +6,8 @@ import os.path
 import threading 
 import pymysql
 import datetime
+import urllib.parse
+searchSpider='https://api.weibo.cn/2/searchall?c=android&from=1098495010&gsid={}&s={}&count=200&android_id={}&ua=Netease-MuMu__weibo__9.8.4__android__android6.0.1'
 contentbaseurl='https://api.weibo.cn/2/cardlist?count=200&c=android&s={}&from=1098495010&ua=Netease-MuMu__weibo__9.8.4__android__android6.0.1&android_id={}&gsid={}'
 #这个抓得 感觉不怎么好用啊
 newcontentbaseurl='https://api.weibo.cn/2/statuses/user_timeline?count=200&c=android&s={}&from=1098495010&ua=Netease-MuMu__weibo__9.8.4__android__android6.0.1&android_id={}&gsid={}'
@@ -488,6 +490,7 @@ class UserSpider():
         time.sleep(1.1)
         for x in job:
             users_thiscontent=[]
+            subcontent_thiscontent=[]
             page=1   
             actnum=0
             
@@ -498,7 +501,7 @@ class UserSpider():
             
             while(check):
                 for y in responsejob['reposts']:
-                    
+                    subcontent_thiscontent.append({'cid':x['id'],'id':y['user']['id'],'nick':y['user']['name'],'text':y['text']})
                     users_thiscontent.append({'cid':x['id'],'id':y['user']['id'],'nick':y['user']['name']})
                 page=page+1
                
@@ -510,7 +513,9 @@ class UserSpider():
             self.status['lastrepostcontentid']=x['id']
             open('status.config','w').write(json.dumps(self.status,ensure_ascii=False))
             df=pandas.read_json(json.dumps(users_thiscontent,ensure_ascii=False))
+            df1=pandas.read_json(json.dumps(subcontent_thiscontent,ensure_ascii=False))
             df.to_csv(r'111.csv',index= False,mode='a',header=False)
+            df1.to_csv(r'text_repost.csv',index= False,mode='a',header=False)
             time.sleep(1.1) 
     def getflowusers(self):
         df=pandas.DataFrame(self.contentlist)        
@@ -526,30 +531,93 @@ class UserSpider():
         time.sleep(1.1)
         for x in job:
             users_thiscontent=[]
+            subcontent_thiscontent=[]
             page=1   
             actnum=0
             
-            url=flowbaseurl+str(self.gsid)+'&id='+str(x['id'])+'&page='+str(page)
+            url=flowbaseurl.format(str(self.s),str(self.android_id),str(self.gsid))+'&id='+str(x['id'])+'&page='+str(page)
             responsejob=Base.getByUrlDetail(url)          
             time.sleep(1.1)
             check=False if 'comments' not in responsejob.keys() else False if responsejob['comments']==None else False if len(responsejob['comments'])==0 else True
             
             while(check):
                 for y in responsejob['comments']:
-                    
+                    subcontent_thiscontent.append({'cid':x['id'],'id':y['user']['id'],'nick':y['user']['name'],'text':y['text']})
                     users_thiscontent.append({'cid':x['id'],'id':y['user']['id'],'nick':y['user']['name']})
                 page=page+1
                
                 
-                url=flowbaseurl+str(self.gsid)+'&id='+str(x['id'])+'&page='+str(page)
+                url=flowbaseurl.format(str(self.s),str(self.android_id),str(self.gsid))+'&id='+str(x['id'])+'&page='+str(page)
                 responsejob=Base.getByUrlDetail(url)
                 check=False if 'comments' not in responsejob.keys() else False if responsejob['comments']==None else False if len(responsejob['comments'])==0 else True
                 time.sleep(1.1)
             self.status['lastcommentcontentid']=x['id']
             open('status.config','w').write(json.dumps(self.status,ensure_ascii=False))
             df=pandas.read_json(json.dumps(users_thiscontent,ensure_ascii=False))
+            df1=pandas.read_json(json.dumps(subcontent_thiscontent,ensure_ascii=False))
             df.to_csv(r'111.csv',index= False,mode='a',header=False)
+            df1.to_csv(r'text_comment.csv',index= False,mode='a',header=False)
             time.sleep(1.1) 
+
+class SearchSpider():
+    def __init__(self, **kwargs):
+        '''
+        
+        containerid=100303type=1&q=透明桌布&t=3
+        '''
+
+        self.searchWords= kwargs['searchWords'] if 'searchWords' in kwargs.keys() else ''
+        self.gsid= kwargs['gsid'] if 'gsid' in kwargs.keys() else ''
+        self.s= kwargs['s'] if 's' in kwargs.keys() else ''
+        self.android_id= kwargs['android_id'] if 'android_id' in kwargs.keys() else ''
+        self.status=json.loads(open('status.config').read())
+        print(self.status)
+        self.users=[]        
+    def getallcontents(self):
+        if os.path.isfile('contents.json'):
+            self.contentlist=json.loads(open('contents.json').read())
+        else:
+            list1=[self.getonebyword(x) for x in self.searchWords]
+            self.contentlist=[y for x in list1 for y in x ]
+        print(self.contentlist)
+        df=pandas.DataFrame(self.contentlist)        
+        df=df.sort_values(by='id')
+        df=df.reset_index().drop(columns=['index'])
+        df.to_json('contents.json',orient='records')
+    def getonebyword(self,seWord):
+        res=[]
+        containerid='100303type=1&q='+str(seWord)+'&t=3'
+        containerid=urllib.parse.quote_plus(containerid)
+        fid=containerid
+        page=1
+     
+        url=contentbaseurl.format(str(self.s),str(self.android_id),str(self.gsid))+'&containerid='+str(containerid)+'&fid='+fid+'&page='+str(page)
+
+        responsejob=Base.getByUrlDetail(url)
+        time.sleep(1.1)
+        cnt=99
+        
+        while('page_type' in responsejob['cardlistInfo'].keys() and cnt!=0):
+            temp_=[]
+            cards=responsejob['cards']
+            cnt=len(cards)
+            if cnt>0:
+                cardsdf=pandas.read_json(json.dumps(cards,ensure_ascii=False))
+                contentcardsdf=cardsdf[(cardsdf.card_type==9)&(pandas.isna(cardsdf['card_type_name']))] if 'card_type_name' in cardsdf.keys() else cardsdf[cardsdf.card_type==9]
+                cnt=len(contentcardsdf)     
+                page=page+1
+                for x in contentcardsdf.mblog:
+                    temp_.append({'id':x['id'],'mid':x['mid'],'text':x['text']})
+                    res.append({'id':x['id'],'mid':x['mid']})
+                if cnt!=0:
+                    temp_df=pandas.read_json(json.dumps(temp_,ensure_ascii=False))
+                    temp_df.to_csv(r'text_publish.csv',index= False,mode='a',header=False)
+                url=contentbaseurl.format(str(self.s),str(self.android_id),str(self.gsid))+'&containerid='+str(containerid)+'&fid='+fid+'&page='+str(page)
+
+                responsejob=Base.getByUrlDetail(url)
+            time.sleep(1.1)
+        return res
+
 
 
 
