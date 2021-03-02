@@ -454,6 +454,7 @@ class UserSpider():
         df=df.reset_index().drop(columns=['index'])
         df.to_json('contents.json',orient='records')
     def getonebyuid(self,uid):
+        
         res=[]
         containerid='230413'+str(uid)+'_-_WEIBO_SECOND_PROFILE_WEIBO'
         page=1
@@ -463,14 +464,17 @@ class UserSpider():
         responsejob=Base.getByUrlDetail(url)
         time.sleep(1.1)
         while('page_type' in responsejob['cardlistInfo'].keys()):
-            
+            temp_=[]
             cards=responsejob['cards']            
             cardsdf=pandas.read_json(json.dumps(cards,ensure_ascii=False))
             contentcardsdf=cardsdf[cardsdf.card_type==9]
             page=page+1
             for x in contentcardsdf.mblog:
+                temp_.append({'uid':[uid],'id':x['id'],'mid':x['mid'],'text':x['text']})
                 res.append({'id':x['id'],'mid':x['mid']})
-            
+            if cnt!=0:
+                temp_df=pandas.read_json(json.dumps(temp_,ensure_ascii=False))
+                temp_df.to_csv(r'text_publish.csv',index= False,mode='a',header=False)
             url=contentbaseurl.format(str(self.s),str(self.android_id),str(self.gsid))+'&containerid='+str(containerid)+'&page='+str(page)
 
             responsejob=Base.getByUrlDetail(url)
