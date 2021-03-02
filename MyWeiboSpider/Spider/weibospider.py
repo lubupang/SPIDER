@@ -472,9 +472,9 @@ class UserSpider():
             for x in contentcardsdf.mblog:
                 temp_.append({'uid':[uid],'id':x['id'],'mid':x['mid'],'text':x['text']})
                 res.append({'id':x['id'],'mid':x['mid']})
-            if cnt!=0:
-                temp_df=pandas.read_json(json.dumps(temp_,ensure_ascii=False))
-                temp_df.to_csv(r'text_publish.csv',index= False,mode='a',header=False)
+            
+            temp_df=pandas.read_json(json.dumps(temp_,ensure_ascii=False))
+            temp_df.to_csv(r'text_publish.csv',index= False,mode='a',header=False)
             url=contentbaseurl.format(str(self.s),str(self.android_id),str(self.gsid))+'&containerid='+str(containerid)+'&page='+str(page)
 
             responsejob=Base.getByUrlDetail(url)
